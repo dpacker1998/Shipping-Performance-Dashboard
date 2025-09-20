@@ -9,47 +9,35 @@ def generate_date_dim(start_year=2015, end_year=2035):
     dates = pd.date_range(start=start, end=end, freq="D")
     df = pd.DataFrame({"full_date": dates})
 
-    # surrogate key YYYYMMDD
     df["date_sk"] = df["full_date"].dt.strftime("%Y%m%d").astype(int)
 
-    # weekday: Monday=0 ... Sunday=6
     df["weekday"] = df["full_date"].dt.weekday
 
-    # cal_week: week number, Sunday start
     df["cal_week"] = df["full_date"].dt.strftime("%U").astype(int)
 
-    # iso_week: week number, Monday start
     iso = df["full_date"].dt.isocalendar()
     df["iso_week"] = iso["week"].astype(int)
 
-    # month / quarter / year
     df["cal_month"] = df["full_date"].dt.month
     df["cal_qtr"] = df["full_date"].dt.quarter
     df["cal_year"] = df["full_date"].dt.year
 
-    # week start/end (Sunday start for cal, Monday start for ISO)
     df["cal_wk_start_date"] = df["full_date"] - pd.to_timedelta((df["weekday"] + 1) % 7, unit="D")
     df["cal_wk_end_date"] = df["cal_wk_start_date"] + timedelta(days=6)
 
     df["iso_wk_start_date"] = df["full_date"] - pd.to_timedelta(df["weekday"], unit="D")
     df["iso_wk_end_date"] = df["iso_wk_start_date"] + timedelta(days=6)
 
-    # -----------------------------
-    # Extra descriptive columns
-    # -----------------------------
-    df["cal_month_short_name"] = df["full_date"].dt.strftime("%b")     # Jan, Feb, ...
-    df["cal_month_long_name"] = df["full_date"].dt.strftime("%B")      # January, February, ...
+    df["cal_month_short_name"] = df["full_date"].dt.strftime("%b")   
+    df["cal_month_long_name"] = df["full_date"].dt.strftime("%B")      
     
-    # Sunday=1 ... Saturday=7
     df["cal_day_of_week_num"] = df["full_date"].dt.dayofweek.apply(lambda x: (x + 1) % 7 + 1)
 
-    # Monday=1 ... Sunday=7 (ISO standard)
     df["iso_day_of_week_num"] = df["full_date"].dt.isocalendar().day
 
     df["day_of_week_short_name"] = df["full_date"].dt.strftime("%a")  # Mon, Tue, ...
     df["day_of_week_long_name"] = df["full_date"].dt.strftime("%A")   # Monday, Tuesday, ...
-
-    # keep only required columns
+    
     date_dim = df[
         [
             "date_sk",
@@ -72,7 +60,6 @@ def generate_date_dim(start_year=2015, end_year=2035):
         ]
     ].copy()
 
-    # convert datetime64 to plain date objects
     for col in [
         "full_date",
         "cal_wk_start_date",
@@ -86,8 +73,7 @@ def generate_date_dim(start_year=2015, end_year=2035):
 
 
 def write_date_dim_to_postgres(date_dim, db_user, db_pass, db_host, db_port, db_name,
-                               schema="brimich_logistics", table="date_dim", if_exists="replace"):
-    """Write date_dim dataframe into PostgreSQL"""
+                               schema="dgp_logistics", table="date_dim", if_exists="replace"):
     engine = create_engine(
         f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
     )
@@ -98,16 +84,15 @@ def write_date_dim_to_postgres(date_dim, db_user, db_pass, db_host, db_port, db_
 
 
 if __name__ == "__main__":
-    # Step 1: generate calendar
     date_dim = generate_date_dim(2015, 2035)
 
-    # Step 2: write to PostgreSQL (update these values!)
     DB_CREDENTIALS = {
         "db_user": "postgres",
-        "db_pass": "dGp1998rJs1989!",
+        "db_pass": "password",
         "db_host": "localhost",
         "db_port": "5432",
         "db_name": "postgres"
     }
+
 
     write_date_dim_to_postgres(date_dim, **DB_CREDENTIALS)
